@@ -57,12 +57,6 @@ startHandler = do
                               }
   sendCommand (UpdateStatus opts)
 
-  Right chans <- restCall $ R.GetGuildChannels testserverid
-  forM_ (take 1 (filter (\c -> channelName c == "bots") (filter isTextChannel chans)))
-        (\channel -> restCall $ R.CreateMessage (channelId channel)
-                        "Hello! I will reply to pings with pongs")
-
-
 -- If an event handler throws an exception, discord-haskell will continue to run
 eventHandler :: Event -> DiscordHandler ()
 eventHandler event = case event of
