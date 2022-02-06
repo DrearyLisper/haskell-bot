@@ -77,4 +77,4 @@ fromBot :: Message -> Bool
 fromBot = userIsBot . messageAuthor
 
 isPing :: Message -> Bool
-isPing = ("ping" `T.isPrefixOf`) . T.toLower . messageContent
+isPing = ("!ping" `T.isPrefixOf`) . T.toLower . messageContent
