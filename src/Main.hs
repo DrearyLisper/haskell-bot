@@ -1,4 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}  -- allows "strings" to be Data.Text
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 import Control.Monad (when, forM_, void)
 import qualified Data.Text as T
@@ -7,16 +14,44 @@ import qualified Data.Text.IO as TIO
 import UnliftIO (liftIO)
 import UnliftIO.Concurrent
 
+import Data.Text (Text, dropWhile, pack, unpack, stripPrefix)
+
 import Discord
 import Discord.Types
+    ( Event(MessageCreate),
+      GatewaySendable(UpdateStatus),
+      UpdateStatusOpts(UpdateStatusOpts, updateStatusOptsSince,
+                       updateStatusOptsGame, updateStatusOptsNewStatus,
+                       updateStatusOptsAFK),
+      Channel(ChannelText),
+      Message(messageId, messageChannelId, messageAuthor,
+              messageContent),
+      Activity(Activity, activityName, activityType, activityUrl),
+      ActivityType(ActivityTypeGame),
+      UpdateStatusType(UpdateStatusOnline),
+      Snowflake,
+      User(userIsBot) )
 import qualified Discord.Requests as R
+
+import Lambdabot.Main
+import Lambdabot.Plugin.Haskell
+
+import System.IO.Silently (capture)
+
+modulesInfo :: Modules
+modulesInfo = $(modules $  corePlugins ++ ["type", "hoogle"])
+
+online :: String -> IO String
+online strs = do
+    let request = void $ lambdabotMain modulesInfo [onStartupCmds ==> [strs]]
+    (response, _)  <- capture request
+    return response
 
 -- Allows this code to be an executable. See discord-haskell.cabal
 main :: IO ()
 main = if serverId == -1
        then TIO.putStrLn "ERROR: modify the source and set testserverid to your serverid"
        else pingPong
-
 
 
 -- check the url in a discord server
@@ -60,12 +95,11 @@ startHandler = do
 -- If an event handler throws an exception, discord-haskell will continue to run
 eventHandler :: Event -> DiscordHandler ()
 eventHandler event = case event of
-      MessageCreate m -> when (not (fromBot m) && isPing m) $ do
+      MessageCreate m -> when (not (fromBot m) && isCommand m) $ do
         void $ restCall (R.CreateReaction (messageChannelId m, messageId m) "eyes")
-        threadDelay (2 * 10 ^ (6 :: Int))
-
         -- A very simple message.
-        void $ restCall (R.CreateMessage (messageChannelId m) "Pong!")
+        response <- liftIO $ handleCommand m
+        void $ restCall (R.CreateMessage (messageChannelId m) (T.pack response))
 
       _ -> return ()
 
@@ -76,5 +110,8 @@ isTextChannel _ = False
 fromBot :: Message -> Bool
 fromBot = userIsBot . messageAuthor
 
-isPing :: Message -> Bool
-isPing = ("!ping" `T.isPrefixOf`) . T.toLower . messageContent
+isCommand :: Message -> Bool
+isCommand = ("!" `T.isPrefixOf`) . T.toLower . messageContent
+
+handleCommand :: Message -> IO String
+handleCommand = online . (\s -> '@' : tail s) . T.unpack  . messageContent
