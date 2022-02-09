@@ -39,11 +39,11 @@ import Lambdabot.Plugin.Haskell
 import System.IO.Silently (capture)
 
 modulesInfo :: Modules
-modulesInfo = $(modules $  corePlugins ++ ["type", "hoogle"])
+modulesInfo = $(modules $  corePlugins ++ ["type", "hoogle", "eval"])
 
 online :: String -> IO String
 online strs = do
-    let request = void $ lambdabotMain modulesInfo [onStartupCmds ==> [strs]]
+    let request = void $ lambdabotMain modulesInfo [onStartupCmds ==> [strs], trustedPackages ==> ["base", "bytestring", "containers", "array"]]
     (response, _)  <- capture request
     return response
 

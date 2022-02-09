@@ -16,5 +16,12 @@ executable haskell-bot
                       , lambdabot-haskell-plugins
                       , some
                       , silently
+                      , show
+                      , simple-reflect
+                      , QuickCheck
+                      , pretty
+                      , containers
+                      , mtl
+                      , bytestring
     hs-source-dirs:   src 
     default-language: Haskell2010
